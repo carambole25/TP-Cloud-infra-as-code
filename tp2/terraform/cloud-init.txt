@@ -1,0 +1,64 @@
+#cloud-config
+users:
+  - default
+  - name: carambole
+    password: $6$tHrUSv1wTaDEcU1q$1PBsTKihivlzM1EXW8.8.tlwnrGnpfaTVDt8nTvUW/bQAJFTu371dNPLGfb1Xc9fSzBNvioUFP/oZ1RkyUxyY.
+    sudo: true
+    shell: /bin/bash
+    groups: sudo, docker
+    ssh_authorized_keys:
+      - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDQcB4v6gYHDtyXtozyO1VoC8uOomgIP84YLKDM6wCyDOkjAIZJKyR/yhTTHbP6YYy7GpLhiUZJ/r8DBJpl7/cJiJhwXOEnqDH/cec3g5cKi2+6/fIBepMSZ5Ltsnk3eKaUUXkVa1cFaVsAXJlRT8GnkdCkXh1oZA/LA1T/uS94xdUril2qpOS7d7JhTGKxLHTe0dBOJv2uGCBMA3cASDHViazjR5M9eqKLzjmgK27VaonL7Zo3iYzwPOFQU0OOxFFzk2xHpRzU54cZ23F6sldZwN1N8Q6CVvDHqKPmlVHyFBD3WA1+Xbi8nU23K+a3ipfoX4eVC1XBs7fkT5ep4/W4Us8fNxcHwX3hoAWKDI2Fa3RbMXt1mrnEmIIyCJ9WqoklX2SfXYEscvczMSBXfyYjUg621yUeew31N679ZeIliDwPjxIwK5E+nXw/LAyIxxzadqS6XkMgFpcDDA5zTCuMalOSz0AZ3Rpj4pAXNsvkh8YOLYxojqPZfq5SR7BWcWD5t6XX9Rm11XbtAmgqV8SebBfTLT3qU1YSmxkbxs0ZavPtNgQGln76vWPhTalCM7iBW2Eub6DdVcDR0OH5F5DFKn6jBIZ3vVGz9aewKzSh3klVXhp2jPs2lzpXfxsc9sx4uq7uJdO4JbJLy4TIW3LnGJ0LiLotX2T+kTR4mSUhlQ== carambole@eva01
+
+apt:
+  sources:
+    docker.list:
+      source: deb [arch=amd64] https://download.docker.com/linux/ubuntu $RELEASE stable
+      keyid: 9DC858229FC7DD38854AE2D88D81803C0EBFCD88
+
+packages:
+  - docker-ce
+  - docker-ce-cli
+
+runcmd :
+  - docker pull alpine:latest
+  - mkdir /opt/wikijs
+
+write_files:
+  - path: /opt/wikijs/docker-compose.yml
+    content: |
+      services:
+
+        db:
+          image: postgres:15-alpine
+          environment:
+            POSTGRES_DB: wiki
+            POSTGRES_PASSWORD: wikijsrocks
+            POSTGRES_USER: wikijs
+          logging:
+            driver: none
+          restart: unless-stopped
+          volumes:
+            - db-data:/var/lib/postgresql/data
+
+        wiki:
+          image: ghcr.io/requarks/wiki:2
+          depends_on:
+            - db
+          environment:
+            DB_TYPE: postgres
+            DB_HOST: db
+            DB_PORT: 5432
+            DB_USER: wikijs
+            DB_PASS: wikijsrocks
+            DB_NAME: wiki
+          restart: unless-stopped
+          ports:
+            - "10101:3000"
+
+      volumes:
+        db-data:  
+    owner: 'root:root'
+    permissions: '0777'
+
+runcmd :
+  - docker compose -f /opt/wikijs/docker-compose.yml up -d  
