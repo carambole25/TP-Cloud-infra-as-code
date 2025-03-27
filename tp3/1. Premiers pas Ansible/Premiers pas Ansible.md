@@ -1,3 +1,9 @@
+## 🌞 Vous me livrerez vos deux fichiers en compte-rendu
+[main.tf](main.tf)
+
+[cloud-init.yml](cloud-init.yml)
+
+
 ## 🌞 Pour le compte-rendu
 ```zsh
 ❯ curl --insecure https://40.114.150.31/
