@@ -109,4 +109,92 @@ users:
 ```
 
 ## 3. Dynamic loadbalancer
-en cours
+### 🌞 En compte-rendu...
+#### On rajoute une troisème vm dans main.tf
+```yml
+resource "azurerm_linux_virtual_machine" "vm3" {
+  name                = "${var.prefix}-vm3"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+  size                = "Standard_B2s"
+  admin_username      = "carambole"
+  
+  network_interface_ids = [azurerm_network_interface.internal_vm3.id]
+
+  admin_ssh_key {
+    username   = "carambole"
+    public_key = file("~/.ssh/id_rsa.pub")
+  }
+
+  source_image_reference {
+    publisher = "Canonical"
+    offer     = "0001-com-ubuntu-server-jammy"
+    sku       = "22_04-lts"
+    version   = "latest"
+  }
+
+  os_disk {
+    storage_account_type = "Standard_LRS"
+    caching              = "ReadWrite"
+  }
+
+  custom_data = filebase64("cloud-init.txt")
+}
+```
+
+#### hosts.ini
+```yml
+[webapp]
+40.118.63.152
+40.118.62.77
+
+[rproxy]
+40.118.63.182
+```
+
+#### rproxy.yml
+```yml
+- name: Install nginx and setup reverse proxy
+  hosts: rproxy
+  become: true
+
+  tasks:
+  - name: Install nginx
+    apt:
+      name: nginx
+      state: present
+
+  - name: NGINX copy du fichier de conf
+    become: true
+    template:
+      src: rproxy.conf.j2
+      dest: /etc/nginx/conf.d/rproxy.conf
+
+  - name: Supprimer le site par défaut de Nginx
+    file:
+      path: /etc/nginx/sites-enabled/default
+      state: absent
+  
+  - name: Start NGiNX
+    service:
+      name: nginx
+      state: started
+```
+
+#### rproxy.conf.j2
+```yml
+upstream pipotam {
+{% for ip in groups['webapp'] %}
+    server {{ ip }};
+{%  %}
+}
+
+server {
+    server_name anyway.com;
+
+    location / {
+        proxy_pass http://pipotam;
+        proxy_set_header    Host $host;
+    }
+}
+```
